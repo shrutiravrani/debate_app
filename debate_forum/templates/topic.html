@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="topic-page">
+    <h2 class="topic-title">{{ topic['topicName'] }}</h2>
+    <button id="addClaimBtn" class="btn-primary">Add Claim</button>
+    <div class="claims-container">
+        {% for claim in claims %}
+        <div class="claim-box">
+            <h3><a href="{{ url_for('claim', claim_id=claim['claimID']) }}">{{ claim['text'] }}</a></h3>
+            <p class="claim-author">Posted by: {{ claim['userName'] }}</p>
+            <p class="claim-time">Posted at: {{ claim['creationTime'] }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Add Claim Modal -->
+    <div id="addClaimModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeAddClaim">&times;</span>
+            <form id="addClaimForm">
+                <h2>Add Claim</h2>
+                <label for="claimText">Claim Text</label>
+                <textarea name="claimText" id="claimText" required></textarea>
+                <input type="hidden" name="topicID" id="topicID" value="{{ topic['topicID'] }}">
+                <button type="submit" class="btn-primary">Add Claim</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login Prompt Modal -->
+    <div id="loginPromptModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeLoginPrompt">&times;</span>
+            <p>You need to be logged in to post a claim.</p>
+            <button class="btn-primary" id="okButton">OK</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Get the modals
+    var addClaimModal = document.getElementById("addClaimModal");
+    var loginPromptModal = document.getElementById("loginPromptModal");
+
+    // Get the button that opens the add claim modal
+    var addClaimBtn = document.getElementById("addClaimBtn");
+
+    // Get the <span> elements that close the modals
+    var closeAddClaim = document.getElementById("closeAddClaim");
+    var closeLoginPrompt = document.getElementById("closeLoginPrompt");
+    var okButton = document.getElementById("okButton");
+
+    // Check if user is logged in
+    var userLoggedIn = {{ 'true' if session.get('user_id') else 'false' }};
+
+    // When the user clicks the button, open the appropriate modal
+    addClaimBtn.onclick = function() {
+        if (userLoggedIn) {
+            addClaimModal.style.display = "block";
+        } else {
+            loginPromptModal.style.display = "block";
+        }
+    }
+
+    // When the user clicks on <span> (x), close the modal
+    closeAddClaim.onclick = function() {
+        addClaimModal.style.display = "none";
+    }
+
+    closeLoginPrompt.onclick = function() {
+        loginPromptModal.style.display = "none";
+    }
+
+    // When the user clicks OK button, close the modal
+    okButton.onclick = function() {
+        loginPromptModal.style.display = "none";
+    }
+
+    // When the user clicks anywhere outside of the modal, close it
+    window.onclick = function(event) {
+        if (event.target == addClaimModal) {
+            addClaimModal.style.display = "none";
+        }
+        if (event.target == loginPromptModal) {
+            loginPromptModal.style.display = "none";
+        }
+    }
+
+    // Clear form data when modal is opened
+    addClaimBtn.onclick = function() {
+        if (userLoggedIn) {
+            document.getElementById("claimText").value = "";
+            addClaimModal.style.display = "block";
+        } else {
+            loginPromptModal.style.display = "block";
+        }
+    }
+
+    // AJAX for adding a claim
+    document.getElementById("addClaimForm").onsubmit = function(event) {
+        event.preventDefault();
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/add_claim", true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    if (!response.error) {
+                        var newClaim = document.createElement("div");
+                        newClaim.classList.add("claim-box");
+                        newClaim.innerHTML = '<h3><a href="/claim/' + response.claimID + '">' + response.claimText + '</a></h3>' +
+                                             '<p class="claim-author">Posted by: ' + response.username + '</p>' +
+                                             '<p class="claim-time">Posted at: ' + response.postedAt + '</p>';
+                        document.querySelector(".claims-container").prepend(newClaim);
+                        addClaimModal.style.display = "none";
+                    } else {
+                        alert(response.error);
+                    }
+                }
+            }
+        };
+        var claimText = document.getElementById("claimText").value;
+        var topicID = document.getElementById("topicID").value;
+        xhr.send("claimText=" + encodeURIComponent(claimText) + "&topicID=" + encodeURIComponent(topicID));
+    };
+</script>
+{% endblock %}

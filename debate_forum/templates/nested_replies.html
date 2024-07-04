@@ -1,0 +1,20 @@
+<div class="replies-container">
+    {% for reply in replies if not reply.parent %}
+    <div class="reply-box" id="reply-{{ reply['replyTextID'] }}">
+       <h4> <p>{{ reply['text'] }}</p></h4>
+        <p>Posted by: {{ reply['userName'] }}</p>
+        <p>Type: {{ reply['claimReplyType'] }}</p>
+        <button class="add-reply-to-reply-btn" data-reply-id="{{ reply['replyTextID'] }}">Reply</button>
+        <div class="nested-replies" id="nested-replies-{{ reply['replyTextID'] }}">
+            {% for nested_reply in replies if nested_reply.parent == reply.replyTextID %}
+            <div class="reply-box" id="reply-{{ nested_reply['replyTextID'] }}">
+                <p>{{ nested_reply['text'] }}</p>
+                <p>Posted by: {{ nested_reply['userName'] }}</p>
+                <p>Type: {{ nested_reply['claimReplyType'] }}</p>
+                <button class="add-reply-to-reply-btn" data-reply-id="{{ nested_reply['replyTextID'] }}">Reply</button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>

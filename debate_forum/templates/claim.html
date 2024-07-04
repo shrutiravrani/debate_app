@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Claim : {{ claim['text'] }}</h2>
+
+    <!-- Post Claim Button -->
+    <button id="addRelatedClaimBtn" class="btn2">Post Related Claim</button>
+
+    <!-- Add Related Claim Modal -->
+    <div id="addRelatedClaimModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeAddRelatedClaim">&times;</span>
+            <form id="addRelatedClaimForm">
+                <h2>Post Related Claim</h2>
+                <label for="relatedClaimText">Claim Text</label>
+                <textarea name="relatedClaimText" id="relatedClaimText" required></textarea>
+                <input type="hidden" name="relatedClaimID" id="relatedClaimID" value="{{ claim['claimID'] }}">
+                <label for="relationshipType">Relationship Type</label>
+                <select name="relationshipType" id="relationshipType">
+                    <option value="1" class="option-opposed">Opposed</option>
+                    <option value="2" class="option-equivalent">Equivalent</option>
+                </select>
+                <button type="submit">Add Related Claim</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="claims-section">
+        <div class="equivalent-claims">
+            <h3>Equivalent Claims</h3>
+            <div class="claims-container" id="equivalent-claims">
+                {% for claim in equivalent_claims %}
+                <div class="claim-box">
+                    <h3><a href="{{ url_for('claim', claim_id=claim['claimID']) }}">{{ claim['text'] }}</a></h3>
+                    <p>Posted by: {{ claim['userName'] }}</p>
+                    
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="opposed-claims">
+            <h3>Opposed Claims</h3>
+            <div class="claims-container" id="opposed-claims">
+                {% for claim in opposed_claims %}
+                <div class="claim-box">
+                    <h3><a href="{{ url_for('claim', claim_id=claim['claimID']) }}">{{ claim['text'] }}</a></h3>
+                    <p>Posted by: {{ claim['userName'] }}</p>
+                    
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <h3>Replies</h3>
+    <!-- Add Reply Button -->
+    <p>Add your reply relevant to this Claim and you can choose the type of your reply as well</p><br><br>
+
+    <button id="addReplyBtn" class="btn-primary">Add Reply</button><br><br><br>
+
+    <div class="replies-container">
+        <div id="clarification-replies">
+            {% for reply in replies if reply['claimReplyTypeID'] == 1 %}
+            <div class="reply-box" id="reply-{{ reply['replyTextID'] }}">
+                <p>{{ reply['text'] }}</p>
+                <p>Posted by: {{ reply['userName'] }}</p>
+                <p>Type: Clarification</p>
+                <button class="add-reply-to-reply-btn" data-reply-id="{{ reply['replyTextID'] }}">Reply</button>
+                <div class="nested-replies" id="nested-replies-{{ reply['replyTextID'] }}"></div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="supporting-argument-replies">
+            {% for reply in replies if reply['claimReplyTypeID'] == 2 %}
+            <div class="reply-box" id="reply-{{ reply['replyTextID'] }}">
+                <p>{{ reply['text'] }}</p>
+                <p>Posted by: {{ reply['userName'] }}</p>
+                <p>Type: Supporting Argument</p>
+                <button class="add-reply-to-reply-btn" data-reply-id="{{ reply['replyTextID'] }}">Reply</button>
+                <div class="nested-replies" id="nested-replies-{{ reply['replyTextID'] }}"></div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="counterargument-replies">
+            {% for reply in replies if reply['claimReplyTypeID'] == 3 %}
+            <div class="reply-box" id="reply-{{ reply['replyTextID'] }}">
+                <p>{{ reply['text'] }}</p>
+                <p>Posted by: {{ reply['userName'] }}</p>
+                <p>Type: Counterargument</p>
+                <button class="add-reply-to-reply-btn" data-reply-id="{{ reply['replyTextID'] }}">Reply</button>
+                <div class="nested-replies" id="nested-replies-{{ reply['replyTextID'] }}"></div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Add Reply Modal -->
+    <div id="addReplyModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeAddReply">&times;</span>
+            <form id="addReplyForm">
+                <h2>Add Reply</h2>
+                <label for="replyText">Reply Text</label>
+                <textarea name="replyText" id="replyText" required></textarea>
+                <input type="hidden" name="claimID" id="claimID" value="{{ claim['claimID'] }}">
+                <input type="hidden" name="parentReplyID" id="parentReplyID" value="">
+                <label for="replyType">Reply Type</label>
+                <select name="replyType" id="replyType">
+                    <option value="1">Clarification</option>
+                    <option value="2">Supporting Argument</option>
+                    <option value="3">Counterargument</option>
+                    <option value="4">Evidence</option>
+                    <option value="5">Support</option>
+                    <option value="6">Rebuttal</option>
+                </select>
+                <button type="submit" class="btn-primary">Add Reply</button>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    // Get the modals
+    var addReplyModal = document.getElementById("addReplyModal");
+    var addRelatedClaimModal = document.getElementById("addRelatedClaimModal");
+
+    // Get the buttons that open the modals
+    var addReplyBtn = document.getElementById("addReplyBtn");
+    var addRelatedClaimBtn = document.getElementById("addRelatedClaimBtn");
+
+    // Get the <span> elements that close the modals
+    var closeAddReply = document.getElementById("closeAddReply");
+    var closeAddRelatedClaim = document.getElementById("closeAddRelatedClaim");
+
+    // Check if user is logged in
+    var userLoggedIn = {{ 'true' if session.get('user_id') else 'false' }};
+
+    // When the user clicks the button, open the appropriate modal
+    addReplyBtn.onclick = function() {
+        if (userLoggedIn) {
+            addReplyModal.style.display = "block";
+            document.getElementById("parentReplyID").value = "";  // Ensure it's empty when adding a direct reply to the claim
+            // Set reply type options for direct reply to claim
+            document.getElementById("replyType").innerHTML = `
+                <option value="1">Clarification</option>
+                <option value="2">Supporting Argument</option>
+                <option value="3">Counterargument</option>
+            `;
+        } else {
+            alert("You need to be logged in to add a reply.");
+        }
+    }
+
+    addRelatedClaimBtn.onclick = function() {
+        if (userLoggedIn) {
+            addRelatedClaimModal.style.display = "block";
+        } else {
+            alert("You need to be logged in to post a related claim.");
+        }
+    }
+
+    // When the user clicks on <span> (x), close the modal
+    closeAddReply.onclick = function() {
+        addReplyModal.style.display = "none";
+    }
+
+    closeAddRelatedClaim.onclick = function() {
+        addRelatedClaimModal.style.display = "none";
+    }
+
+    // When the user clicks anywhere outside of the modal, close it
+    window.onclick = function(event) {
+        if (event.target == addReplyModal) {
+            addReplyModal.style.display = "none";
+        } else if (event.target == addRelatedClaimModal) {
+            addRelatedClaimModal.style.display = "none";
+        }
+    }
+
+    // Handle reply to reply button clicks
+    document.querySelectorAll('.add-reply-to-reply-btn').forEach(function(button) {
+        button.onclick = function() {
+            if (userLoggedIn) {
+                addReplyModal.style.display = "block";
+                document.getElementById("parentReplyID").value = this.getAttribute('data-reply-id');
+                // Set reply type options for reply to reply
+                document.getElementById("replyType").innerHTML = `
+                    <option value="4">Evidence</option>
+                    <option value="5">Support</option>
+                    <option value="6">Rebuttal</option>
+                `;
+            } else {
+                alert("You need to be logged in to add a reply.");
+            }
+        }
+    });
+
+    // AJAX for adding a reply
+document.getElementById("addReplyForm").onsubmit = function(event) {
+    event.preventDefault();
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "/add_reply", true);
+    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status === 200) {
+                var response = JSON.parse(xhr.responseText);
+                if (!response.error) {
+                    var newReply = document.createElement("div");
+                    newReply.classList.add("reply-box");
+                    var replyTypeText = "";
+                    var containerId = "";
+                    switch (response.replyType) {
+                        case 1:
+                            replyTypeText = "Clarification";
+                            containerId = "clarification-replies";
+                            break;
+                        case 2:
+                            replyTypeText = "Supporting Argument";
+                            containerId = "supporting-argument-replies";
+                            break;
+                        case 3:
+                            replyTypeText = "Counterargument";
+                            containerId = "counterargument-replies";
+                            break;
+                        case 4:
+                            replyTypeText = "Evidence";
+                            break;
+                        case 5:
+                            replyTypeText = "Support";
+                            break;
+                        case 6:
+                            replyTypeText = "Rebuttal";
+                            break;
+                    }
+                    newReply.innerHTML = '<p>' + response.replyText + '</p>' +
+                                         '<p>Posted by: ' + response.username + '</p>' +
+                                         '<p>Type: ' + replyTypeText + '</p>' +
+                                         '<p>Posted at: ' + response.postedAt + '</p>' +
+                                         '<button class="add-reply-to-reply-btn" data-reply-id="' + response.replyID + '">Reply</button>' +
+                                         '<div class="nested-replies" id="nested-replies-' + response.replyID + '"></div>';
+                    
+                    if (response.parentReplyID) {
+                        var nestedContainer = document.getElementById("nested-replies-" + response.parentReplyID);
+                        nestedContainer.prepend(newReply);
+                    } else {
+                        document.getElementById(containerId).prepend(newReply);
+                    }
+                    
+                    // Re-add event listener for the new reply button
+                    newReply.querySelector('.add-reply-to-reply-btn').onclick = function() {
+                        if (userLoggedIn) {
+                            addReplyModal.style.display = "block";
+                            document.getElementById("parentReplyID").value = this.getAttribute('data-reply-id');
+                            document.getElementById("replyType").innerHTML = `
+                                <option value="4">Evidence</option>
+                                <option value="5">Support</option>
+                                <option value="6">Rebuttal</option>
+                            `;
+                        } else {
+                            alert("You need to be logged in to add a reply.");
+                        }
+                    };
+
+                    addReplyModal.style.display = "none";
+                    document.getElementById("replyText").value = "";  // Clear the reply text field
+                } else {
+                    alert(response.error);
+                }
+            }
+        }
+    };
+    var replyText = document.getElementById("replyText").value;
+    var claimID = document.getElementById("claimID").value;
+    var replyType = document.getElementById("replyType").value;
+    var parentReplyID = document.getElementById("parentReplyID").value;
+    xhr.send("replyText=" + encodeURIComponent(replyText) + "&claimID=" + encodeURIComponent(claimID) + "&replyType=" + encodeURIComponent(replyType) + "&parentReplyID=" + encodeURIComponent(parentReplyID));
+};
+
+
+    // AJAX for adding a related claim
+    document.getElementById("addRelatedClaimForm").onsubmit = function(event) {
+        event.preventDefault();
+        console.log("Submitting related claim form");
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/add_related_claim", true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    if (!response.error) {
+                        var newClaim = document.createElement("div");
+                        newClaim.classList.add("claim-box");
+                        newClaim.innerHTML = '<h3><a href="/claim/' + response.claimID + '">' + response.claimText + '</a></h3>';
+                        if (response.relationshipType == 1) {
+                            document.querySelector("#opposed-claims").prepend(newClaim);
+                        } else {
+                            document.querySelector("#equivalent-claims").prepend(newClaim);
+                        }
+                        addRelatedClaimModal.style.display = "none";
+                    } else {
+                        alert(response.error);
+                    }
+                }
+            }
+        };
+        var relatedClaimText = document.getElementById("relatedClaimText").value;
+        var relatedClaimID = document.getElementById("relatedClaimID").value;
+        var relationshipType = document.getElementById("relationshipType").value;
+        xhr.send("relatedClaimText=" + encodeURIComponent(relatedClaimText) + "&relatedClaimID=" + encodeURIComponent(relatedClaimID) + "&relationshipType=" + encodeURIComponent(relationshipType));
+    };
+</script>
+{% endblock %}

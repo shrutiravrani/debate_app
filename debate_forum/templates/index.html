@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="index-page">
+    <h2 class="index-title">Topics</h2>
+    <button id="addTopicBtn" class="btn-primary">Add Topic</button>
+    <div class="topics-container">
+        {% for topic in topics %}
+        <div class="topic-box">
+            <h3><a href="{{ url_for('topic', topic_id=topic['topicID']) }}">{{ topic['topicName'] }}</a></h3>
+            <p class="topic-author">Posted by: {{ topic['userName'] }}</p>
+            <p class="topic-time">Posted at: {{ topic['datetime(t.creationTime, \'unixepoch\')'] }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Add Topic Modal -->
+    <div id="addTopicModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeAddTopic">&times;</span>
+            <form id="addTopicForm">
+                <h2>Add Topic</h2>
+                <label for="topicName">Topic Name</label>
+                <input type="text" name="topicName" id="topicName" required>
+                <button type="submit" class="btn-primary">Add Topic</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login Prompt Modal -->
+    <div id="loginPromptModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeLoginPrompt">&times;</span>
+            <p>You need to be logged in to add a topic or a claim.</p>
+            <button class="btn-primary" id="okButton">OK</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Get the modals
+    var addTopicModal = document.getElementById("addTopicModal");
+    var loginPromptModal = document.getElementById("loginPromptModal");
+
+    // Get the button that opens the add topic modal
+    var addTopicBtn = document.getElementById("addTopicBtn");
+
+    // Get the <span> elements that close the modals
+    var closeAddTopic = document.getElementById("closeAddTopic");
+    var closeLoginPrompt = document.getElementById("closeLoginPrompt");
+    var okButton = document.getElementById("okButton");
+
+    // Check if user is logged in
+    var userLoggedIn = {{ 'true' if session.get('user_id') else 'false' }};
+
+    // When the user clicks the button, open the appropriate modal
+    addTopicBtn.onclick = function() {
+        if (userLoggedIn) {
+            addTopicModal.style.display = "block";
+        } else {
+            loginPromptModal.style.display = "block";
+        }
+    }
+
+    // When the user clicks on <span> (x), close the modal
+    closeAddTopic.onclick = function() {
+        addTopicModal.style.display = "none";
+    }
+
+    closeLoginPrompt.onclick = function() {
+        loginPromptModal.style.display = "none";
+    }
+
+    // When the user clicks OK button, close the modal
+    okButton.onclick = function() {
+        loginPromptModal.style.display = "none";
+    }
+
+    // When the user clicks anywhere outside of the modal, close it
+    window.onclick = function(event) {
+        if (event.target == addTopicModal) {
+            addTopicModal.style.display = "none";
+        } else if (event.target == loginPromptModal) {
+            loginPromptModal.style.display = "none";
+        }
+    }
+
+    // AJAX for adding a topic
+    document.getElementById("addTopicForm").onsubmit = function(event) {
+        event.preventDefault();
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/add_topic", true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    if (!response.error) {
+                        var newTopic = document.createElement("div");
+                        newTopic.classList.add("topic-box");
+                        newTopic.innerHTML = '<h3><a href="/topic/' + response.topicID + '">' + response.topicName + '</a></h3>' +
+                                             '<p class="topic-author">Posted by: ' + response.username + '</p>' +
+                                             '<p class="topic-time">Posted at: ' + response.postedAt + '</p>';
+                        document.querySelector(".topics-container").prepend(newTopic);
+                        addTopicModal.style.display = "none";
+                    } else {
+                        alert(response.error);
+                    }
+                }
+            }
+        };
+        var topicName = document.getElementById("topicName").value;
+        xhr.send("topicName=" + encodeURIComponent(topicName));
+    };
+</script>
+{% endblock %}
